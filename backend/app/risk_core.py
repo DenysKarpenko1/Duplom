@@ -34,3 +34,9 @@ def calculate_risk(probability: int, impact: int) -> tuple[int, str]:
     """Повертає пару (бал, рівень) для заданих оцінок."""
     score = risk_score(probability, impact)
     return score, risk_level(score)
+
+
+def matrix_probability(threat_likelihood: int, severity: int) -> int:
+    """Ймовірність для матричної моделі з тих самих вихідних даних, що й у комбінованого методу:
+    P = ⌈(базова ймовірність загрози + критичність вразливості) / 2⌉, обидві за шкалою 1..5."""
+    return -(-(threat_likelihood + severity) // 2)

@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '../api'
 
-// Сховище ризиків: єдине джерело даних для дашборду та сторінки введення
+// Сховище «швидкого введення» (плаский API MVP /api/risks, матрична модель)
 export const useRiskStore = defineStore('risks', () => {
   const risks = ref([])
   const loading = ref(false)
@@ -47,6 +47,8 @@ export const useRiskStore = defineStore('risks', () => {
 
   async function addRisk(payload) {
     const created = await api.post('/risks', payload)
+    // Сценарій одразу оцінюється й комбінованим методом, щоб з'явитися на дашборді
+    await api.post(`/scenarios/${created.id}/assessments`, { method: 'combined' })
     // Зберігаємо впорядкованість за спаданням балу, як у відповіді сервера
     risks.value = [...risks.value, created].sort((a, b) => b.score - a.score || a.id - b.id)
     return created

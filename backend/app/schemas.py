@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 MeasureType = Literal["preventive", "detective", "corrective"]
 MeasureStatus = Literal["implemented", "planned"]
@@ -148,11 +148,26 @@ class ScenarioMeasureOut(ORMModel):
 
 
 class AssessmentIn(BaseModel):
-    """Нове оцінювання сценарію (поки що — матричним методом)."""
+    """Нове оцінювання сценарію.
 
-    probability: int = Field(ge=1, le=5)
-    impact: int = Field(ge=1, le=5)
+    matrix   — потрібні probability та impact (1..5);
+    combined — ймовірність обчислюється деревом атак, impact (1..5, можна дробовий)
+               необов'язковий: за замовчуванням — max(C, I, A) активу.
+    """
+
+    method: Literal["matrix", "combined"] = "matrix"
+    probability: int | None = Field(default=None, ge=1, le=5)
+    impact: float | None = Field(default=None, ge=1, le=5)
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def _check_matrix_inputs(self):
+        if self.method == "matrix":
+            if self.probability is None or self.impact is None:
+                raise ValueError("Для матричного методу потрібні probability та impact")
+            if self.impact != int(self.impact):
+                raise ValueError("Для матричного методу impact має бути цілим")
+        return self
 
 
 class AssessmentOut(ORMModel):
@@ -161,6 +176,8 @@ class AssessmentOut(ORMModel):
     method: str
     probability: int
     impact: int
+    likelihood: Decimal | None
+    residual_likelihood: Decimal | None
     score: Decimal
     level: Ref
     residual_score: Decimal | None
@@ -185,6 +202,49 @@ class ScenarioOut(ORMModel):
     created_at: datetime
     measure_links: list[ScenarioMeasureOut]
     assessments: list[AssessmentOut]
+
+
+# ---------------------------------------------------------------- дерева атак
+class AttackNodeIn(BaseModel):
+    """Вузол дерева атак (вкладена структура)."""
+
+    name: str = Field(min_length=1, max_length=300)
+    gate: Literal["LEAF", "AND", "OR"] = "LEAF"
+    probability: float | None = Field(default=None, ge=0, le=1)
+    vulnerability_id: int | None = None
+    children: list["AttackNodeIn"] = []
+
+
+class AttackNodeOut(BaseModel):
+    name: str
+    gate: str
+    probability: float | None  # задана ймовірність листка
+    vulnerability_id: int | None
+    computed: float  # обчислена ймовірність без заходів
+    residual: float  # з урахуванням впроваджених заходів
+    on_critical_path: bool
+    children: list["AttackNodeOut"] = []
+
+
+class FuzzyOut(BaseModel):
+    score: float
+    nist_level: str
+    activations: dict[str, float]
+
+
+class AttackTreeOut(BaseModel):
+    scenario_id: int
+    custom: bool  # False — типове дерево (загроза AND вразливість)
+    root: AttackNodeOut
+    likelihood: float
+    likelihood_level: str
+    residual_likelihood: float
+    impact: float
+    inherent: FuzzyOut
+    residual: FuzzyOut
+    risk_reduction: float
+    most_likely_path: list[str]
+    minimal_cut_sets: list[list[str]]
 
 
 # ---------------------------------------------------------------- сумісність з MVP

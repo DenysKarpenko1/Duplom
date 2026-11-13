@@ -6,7 +6,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models
-from .risk_core import risk_score
 
 
 def get_or_404(db: Session, model, obj_id: int, what: str = "Запис"):
@@ -37,17 +36,6 @@ def level_for_score(db: Session, score: Decimal | float | int) -> models.RiskLev
         if score <= level.max_score:
             return level
     return levels[-1]
-
-
-def matrix_assessment(db: Session, scenario: models.RiskScenario, probability: int,
-                      impact: int, notes: str | None = None) -> models.RiskAssessment:
-    """Оцінювання базовим матричним методом (Risk = P × I)."""
-    score = Decimal(risk_score(probability, impact))
-    assessment = models.RiskAssessment(
-        method="matrix", probability=probability, impact=impact, score=score,
-        level=level_for_score(db, score), notes=notes)
-    scenario.assessments.append(assessment)
-    return assessment
 
 
 def get_or_create_by_name(db: Session, model, name: str):

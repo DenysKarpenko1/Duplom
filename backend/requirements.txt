@@ -4,3 +4,7 @@ sqlalchemy>=2.0.36
 pydantic>=2.9
 psycopg[binary]>=3.2
 alembic>=1.14
+numpy>=2.0
+scipy>=1.13
+scikit-fuzzy>=0.5
+networkx>=3.3

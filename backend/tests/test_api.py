@@ -1,4 +1,6 @@
 """API довідників, зв'язків M:N, сценаріїв та сумісного /api/risks."""
+import pytest
+
 
 
 def _catalog(client):
@@ -114,3 +116,60 @@ def test_seed(session_factory, monkeypatch, client):
     assert len(client.get("/api/scenarios").json()) == len(seed.SCENARIOS)
     assert len(client.get("/api/risks").json()) == len(seed.SCENARIOS)
     assert len(client.get("/api/measures").json()) == len(seed.MEASURES)
+
+
+def test_combined_assessment_and_attack_tree(client):
+    asset, threat, v1, v2, measure = _catalog(client)
+    sc = client.post("/api/scenarios", json={
+        "asset_id": asset["id"], "threat_id": threat["id"], "vulnerability_id": v2["id"],
+        "measures": [{"measure_id": measure["id"], "status": "implemented"}]}).json()
+    url = f"/api/scenarios/{sc['id']}"
+
+    # типове дерево: ініціювання (base_likelihood=4 -> 0.875) AND експлуатація (severity=3 -> 0.5)
+    tree = client.get(f"{url}/attack-tree").json()
+    assert tree["custom"] is False
+    assert tree["likelihood"] == pytest.approx(0.875 * 0.5)
+    # захід MFA (0.85) закриває v2 -> листок експлуатації зменшується
+    assert tree["residual_likelihood"] == pytest.approx(0.875 * 0.5 * 0.15)
+    assert tree["impact"] == 5  # max(C=5, I=3, A=3)
+
+    custom = {"name": "Доступ до БД", "gate": "OR", "children": [
+        {"name": "Веб", "gate": "AND", "children": [
+            {"name": "Сканування", "probability": 0.9},
+            {"name": "Експлойт", "probability": 0.98, "vulnerability_id": v1["id"]}]},
+        {"name": "Без MFA", "probability": 0.6, "vulnerability_id": v2["id"]}]}
+    tree = client.put(f"{url}/attack-tree", json=custom).json()
+    assert tree["custom"] is True
+    assert tree["likelihood"] == pytest.approx(1 - (1 - 0.882) * (1 - 0.6))
+    assert tree["most_likely_path"] == ["Сканування", "Експлойт"]
+    assert tree["root"]["children"][0]["on_critical_path"] is True
+    assert tree["root"]["children"][1]["on_critical_path"] is False
+    assert len(tree["minimal_cut_sets"]) == 2
+
+    a = client.post(f"{url}/assessments", json={"method": "combined"}).json()
+    assert a["method"] == "combined"
+    assert a["likelihood"] == pytest.approx(tree["likelihood"], abs=1e-4)
+    assert a["score"] == tree["inherent"]["score"]
+    assert a["residual_score"] <= a["score"]
+    assert a["level"]["name"] == "Критичний"
+
+    m = client.post(f"{url}/assessments", json={"method": "matrix", "probability": 4,
+                                                "impact": 5}).json()
+    assert (m["score"], m["residual_score"]) == (20, 5)  # P_res = max(1, round(4*0.15)) = 1
+
+    assert client.post(f"{url}/assessments", json={"method": "matrix"}).status_code == 422
+    bad = {"name": "x", "gate": "AND", "children": []}
+    assert client.put(f"{url}/attack-tree", json=bad).status_code == 422
+    bad = {"name": "x", "gate": "OR", "children": [
+        {"name": "y", "probability": 0.5, "vulnerability_id": 999}]}
+    assert client.put(f"{url}/attack-tree", json=bad).status_code == 422
+
+    assert client.delete(f"{url}/attack-tree").json()["custom"] is False
+
+
+def test_methodology_endpoints(client):
+    data = client.get("/api/methodology/fuzzy").json()
+    assert len(data["rules"]) == 25
+    r = client.get("/api/methodology/fuzzy/infer", params={"likelihood": 0.875,
+                                                           "impact": 4}).json()
+    assert r["nist_level"] == "High"

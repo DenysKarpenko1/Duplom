@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..database import get_db
-from ..services import get_or_404, get_or_create_by_name, matrix_assessment
+from ..assessment import matrix_assessment
+from ..services import get_or_404, get_or_create_by_name
 
 router = APIRouter(prefix="/api/risks")
 

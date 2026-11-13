@@ -37,6 +37,7 @@ def utcnow() -> datetime:
 MEASURE_TYPES = ("preventive", "detective", "corrective")
 MEASURE_STATUSES = ("implemented", "planned")
 ASSESSMENT_METHODS = ("matrix", "combined")
+NODE_GATES = ("LEAF", "AND", "OR")
 
 
 # --------------------------------------------------------------------------
@@ -255,6 +256,40 @@ class RiskScenario(Base):
     assessments: Mapped[list["RiskAssessment"]] = relationship(
         back_populates="scenario", cascade="all, delete-orphan",
         order_by="RiskAssessment.assessed_at")
+    tree_nodes: Mapped[list["AttackTreeNode"]] = relationship(
+        back_populates="scenario", cascade="all, delete-orphan",
+        order_by="AttackTreeNode.position")
+
+
+class AttackTreeNode(Base):
+    """Вузол дерева атак сценарію (список суміжності: parent_id -> id).
+
+    Корінь — вузол з parent_id = NULL; на сценарій припадає не більше одного дерева.
+    """
+
+    __tablename__ = "attack_tree_nodes"
+    __table_args__ = (
+        CheckConstraint("gate IN ('LEAF', 'AND', 'OR')", name="ck_tree_nodes_gate"),
+        CheckConstraint("probability IS NULL OR (probability >= 0 AND probability <= 1)",
+                        name="ck_tree_nodes_probability"),
+        CheckConstraint("gate <> 'LEAF' OR probability IS NOT NULL",
+                        name="ck_tree_nodes_leaf_probability"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    scenario_id: Mapped[int] = mapped_column(
+        ForeignKey("risk_scenarios.id", ondelete="CASCADE"), index=True)
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("attack_tree_nodes.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(300))
+    gate: Mapped[str] = mapped_column(String(4))
+    probability: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
+    vulnerability_id: Mapped[int | None] = mapped_column(
+        ForeignKey("vulnerabilities.id", ondelete="SET NULL"))
+    position: Mapped[int] = mapped_column(Integer, default=0)
+
+    scenario: Mapped["RiskScenario"] = relationship(back_populates="tree_nodes")
+    vulnerability: Mapped[Vulnerability | None] = relationship()
 
 
 class RiskAssessment(Base):
@@ -284,6 +319,8 @@ class RiskAssessment(Base):
     impact: Mapped[int] = mapped_column(Integer)
     score: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     level_id: Mapped[int] = mapped_column(ForeignKey("risk_levels.id", ondelete="RESTRICT"))
+    likelihood: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))  # P з дерева атак
+    residual_likelihood: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
     residual_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     residual_level_id: Mapped[int | None] = mapped_column(
         ForeignKey("risk_levels.id", ondelete="RESTRICT"))

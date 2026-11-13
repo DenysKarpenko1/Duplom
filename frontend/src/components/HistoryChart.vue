@@ -22,8 +22,9 @@ function option() {
   return {
     toolbox: saveAsImage,
     tooltip: { trigger: 'axis' },
-    legend: { bottom: 34, left: 'center', itemGap: 12, textStyle: { fontSize: 11 } },
-    grid: { left: 48, right: 48, top: 40, bottom: 110 },
+    // легенда зверху: у вузькій картці вона займає кілька рядків і не перекриває вісь X
+    legend: { top: 0, left: 'center', right: 40, itemGap: 12, textStyle: { fontSize: 11 } },
+    grid: { left: 48, right: 48, top: 104, bottom: 60 },
     dataZoom: [{ type: 'inside' }, { type: 'slider', height: 14, bottom: 6 }],
     xAxis: { type: 'category', data: days, boundaryGap: true },
     yAxis: [
@@ -38,5 +39,5 @@ const el = useChart(option, () => props.history)
 </script>
 
 <template>
-  <div ref="el" class="h-[420px] w-full"></div>
+  <div ref="el" class="h-[460px] w-full"></div>
 </template>

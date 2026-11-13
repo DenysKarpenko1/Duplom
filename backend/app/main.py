@@ -1,25 +1,13 @@
-"""Сервер застосунку: REST API системи моніторингу ризиків ІБ."""
-from contextlib import asynccontextmanager
+"""Сервер застосунку: REST API системи моніторингу ризиків ІБ.
 
-from fastapi import Depends, FastAPI, HTTPException
+Схема БД створюється й оновлюється міграціями: alembic upgrade head
+"""
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from .database import Base, engine, get_db
-from .models import Risk
-from .risk_core import calculate_risk
-from .schemas import RiskCreate, RiskOut
+from .routers import catalog, risks, scenarios
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Для MVP таблиці створюються під час запуску; пізніше це замінять міграції
-    Base.metadata.create_all(engine)
-    yield
-
-
-app = FastAPI(title="Система моніторингу ризиків ІБ", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Система моніторингу ризиків ІБ", version="0.2.0")
 
 # Дозволяємо запити з сервера розробки фронтенду
 app.add_middleware(
@@ -29,28 +17,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/api/risks", response_model=list[RiskOut])
-def list_risks(db: Session = Depends(get_db)):
-    """Усі ризики, від найнебезпечнішого до найменш небезпечного."""
-    return db.scalars(select(Risk).order_by(Risk.score.desc(), Risk.id)).all()
-
-
-@app.post("/api/risks", response_model=RiskOut, status_code=201)
-def create_risk(payload: RiskCreate, db: Session = Depends(get_db)):
-    """Додає ризик; бал і рівень рахує сервер, а не клієнт."""
-    score, level = calculate_risk(payload.probability, payload.impact)
-    risk = Risk(**payload.model_dump(), score=score, level=level)
-    db.add(risk)
-    db.commit()
-    return risk
-
-
-@app.delete("/api/risks/{risk_id}", status_code=204)
-def delete_risk(risk_id: int, db: Session = Depends(get_db)):
-    """Видаляє ризик за ідентифікатором."""
-    risk = db.get(Risk, risk_id)
-    if risk is None:
-        raise HTTPException(status_code=404, detail="Ризик не знайдено")
-    db.delete(risk)
-    db.commit()
+app.include_router(catalog.router, tags=["Довідники"])
+app.include_router(scenarios.router, tags=["Сценарії та оцінювання"])
+app.include_router(risks.router, tags=["Сумісність з MVP"])

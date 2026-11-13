@@ -2,7 +2,10 @@
 // Каркас застосунку: бічна навігація та область сторінки
 const links = [
   { to: '/', label: 'Дашборд' },
-  { to: '/data', label: 'Введення даних' },
+  { to: '/scenarios', label: 'Сценарії ризику' },
+  { to: '/catalog', label: 'Довідники' },
+  { to: '/methodology', label: 'Методика' },
+  { to: '/data', label: 'Швидке введення' },
 ]
 </script>
 
@@ -20,6 +23,7 @@ const links = [
           :to="link.to"
           class="rounded-lg px-3 py-2 text-sm transition hover:bg-slate-800 hover:text-white"
           exact-active-class="bg-slate-800 font-medium text-white"
+          :active-class="link.to === '/' ? '' : 'bg-slate-800 font-medium text-white'"
         >
           {{ link.label }}
         </RouterLink>

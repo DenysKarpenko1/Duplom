@@ -146,7 +146,9 @@ export const useScenarioStore = defineStore('scenarios', () => {
           day,
           average: vals.reduce((s, a) => s + Number(a.score), 0) / vals.length,
           residual: vals.reduce((s, a) => s + Number(a.residual_score ?? a.score), 0) / vals.length,
-          critical: vals.filter((a) => a.level.name === 'Критичний').length,
+          // критичні з урахуванням впроваджених заходів (залишковий ризик >= 15)
+          critical: vals.filter((a) => Number(a.residual_score ?? a.score) >= 15).length,
+          criticalInherent: vals.filter((a) => a.level.name === 'Критичний').length,
           total: vals.reduce((s, a) => s + Number(a.score), 0),
         })
       }

@@ -5,7 +5,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import catalog, methodology, risks, scenarios
+from .routers import catalog, experiments, methodology, risks, scenarios
 
 app = FastAPI(title="Система моніторингу ризиків ІБ", version="0.3.0")
 
@@ -20,4 +20,5 @@ app.add_middleware(
 app.include_router(catalog.router, tags=["Довідники"])
 app.include_router(scenarios.router, tags=["Сценарії та оцінювання"])
 app.include_router(methodology.router, tags=["Методика"])
+app.include_router(experiments.router, tags=["Експеримент"])
 app.include_router(risks.router, tags=["Сумісність з MVP"])

@@ -4,6 +4,7 @@ const links = [
   { to: '/', label: 'Дашборд' },
   { to: '/scenarios', label: 'Сценарії ризику' },
   { to: '/catalog', label: 'Довідники' },
+  { to: '/comparison', label: 'Порівняння моделей' },
   { to: '/methodology', label: 'Методика' },
   { to: '/data', label: 'Швидке введення' },
 ]

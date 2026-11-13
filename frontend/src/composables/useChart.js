@@ -30,12 +30,21 @@ export function useChart(buildOption, source, { onClick } = {}) {
   const render = () => chart?.setOption(buildOption(), { notMerge: true })
   const resize = () => chart?.resize()
 
-  onMounted(() => {
+  // Елемент може з'явитися пізніше (наприклад, усередині v-if), тому ініціалізуємо ліниво
+  function init() {
+    if (chart || !el.value) return
     chart = echarts.init(el.value)
     if (onClick) chart.on('click', onClick)
     render()
+  }
+  onMounted(() => {
+    init()
     window.addEventListener('resize', resize)
   })
+  watch(el, (node) => {
+    if (!node && chart) { chart.dispose(); chart = null }
+    else init()
+  }, { flush: 'post' })
   onBeforeUnmount(() => {
     window.removeEventListener('resize', resize)
     chart?.dispose()

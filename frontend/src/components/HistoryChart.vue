@@ -17,7 +17,7 @@ function option() {
     last = null
     series.push({ name: `${meta.label}: залишковий`, type: 'line', smooth: true, symbolSize: 4, lineStyle: { type: 'dashed' }, data: pick('residual'), itemStyle: { color: meta.color } })
     last = null
-    series.push({ name: `${meta.label}: критичних`, type: 'bar', yAxisIndex: 1, barMaxWidth: 14, data: pick('critical'), itemStyle: { color: meta.color, opacity: 0.25 } })
+    series.push({ name: `${meta.label}: критичних (залишк.)`, type: 'bar', yAxisIndex: 1, barMaxWidth: 14, data: pick('critical'), itemStyle: { color: meta.color, opacity: 0.25 } })
   }
   return {
     toolbox: saveAsImage,

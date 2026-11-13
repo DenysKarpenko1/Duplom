@@ -9,6 +9,7 @@ export default createRouter({
     { path: '/scenarios', name: 'scenarios', component: () => import('./pages/Scenarios.vue') },
     { path: '/scenarios/:id', name: 'scenario', component: () => import('./pages/ScenarioDetail.vue') },
     { path: '/catalog', name: 'catalog', component: () => import('./pages/Catalog.vue') },
+    { path: '/comparison', name: 'comparison', component: () => import('./pages/Comparison.vue') },
     { path: '/methodology', name: 'methodology', component: () => import('./pages/Methodology.vue') },
     { path: '/data', name: 'data', component: () => import('./pages/DataEntry.vue') },
   ],

@@ -9,7 +9,8 @@
     py -m venv .venv
     .venv\Scripts\pip install -r requirements.txt
     .venv\Scripts\alembic upgrade head
-    .venv\Scripts\python -m app.seed
+    .venv\Scripts\python -m app.seed               # невеликий демонстраційний набір
+    .venv\Scripts\python -m app.seed_enterprise    # або: розширений набір для експерименту
     .venv\Scripts\python -m uvicorn app.main:app --port 8000
 
 Клієнт (термінал 2, з папки `frontend`):
@@ -18,6 +19,17 @@
     npm run dev
 
 Застосунок: http://localhost:5173, документація API: http://localhost:8000/docs
+
+## Математичне ядро (`backend/app/core`)
+
+- `attack_tree.py` — дерева атак (networkx): P(AND) = Πpᵢ, P(OR) = 1 − Π(1 − pᵢ), мінімальні набори атак, критичний шлях
+- `fuzzy.py` — нечіткий висновок (scikit-fuzzy): 5 термів NIST для ймовірності, впливу й ризику, 25 правил з NIST SP 800-30 Table I-2, імплікація Ларсена, центроїд
+- `combined.py` — комбінований метод і залишковий ризик з урахуванням впроваджених заходів
+- `comparison.py` — метрики порівняння моделей (кореляції Спірмена/Кендалла, каппа Коена, ентропія, ties)
+
+## Розширений набір даних
+
+`app/seed_enterprise.py` — умовне підприємство «ТОВ Альфа-Сервіс»: 18 ІТ-активів, 17 загроз, 23 вразливості, 18 заходів захисту, 35 сценаріїв із деревами атак і 6 щомісячними раундами оцінювання (червень–листопад 2026) з поступовим впровадженням заходів. Генерація детермінована.
 
 ## База даних
 
@@ -40,6 +52,10 @@
 - `GET /api/risk-levels` — рівні ризику
 - `GET/POST /api/scenarios`, `GET/DELETE /api/scenarios/{id}`, `PUT /api/scenarios/{id}/measures` — сценарії ризику та заходи
 - `GET/POST /api/scenarios/{id}/assessments` — історія оцінювань сценарію
+- `GET/PUT/DELETE /api/scenarios/{id}/attack-tree` — дерево атак сценарію з обчисленими ймовірностями та нечіткою оцінкою
+- `POST /api/scenarios/{id}/assessments` з `"method": "combined"` — оцінювання комбінованим методом
+- `GET /api/methodology/fuzzy`, `GET /api/methodology/fuzzy/infer` — функції належності, база правил, пробний висновок
+- `GET /api/experiments/comparison` — порівняння матричної моделі та комбінованого методу на всіх сценаріях
 - `GET /api/risks` — сценарії з останньою оцінкою (плаский формат MVP, за спаданням балу)
 - `POST /api/risks` — додати ризик (довідники поповнюються автоматично; Risk = Probability × Impact)
 - `DELETE /api/risks/{id}` — видалити сценарій

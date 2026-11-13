@@ -173,3 +173,29 @@ def test_methodology_endpoints(client):
     r = client.get("/api/methodology/fuzzy/infer", params={"likelihood": 0.875,
                                                            "impact": 4}).json()
     assert r["nist_level"] == "High"
+
+
+def test_enterprise_seed_and_comparison(session_factory, monkeypatch, client):
+    from app import seed_enterprise
+    monkeypatch.setattr(seed_enterprise, "SessionLocal", session_factory)
+    summary = seed_enterprise.run(rounds=2)
+    assert summary["scenarios"] >= 30
+
+    scenarios = client.get("/api/scenarios").json()
+    assert len(scenarios) == summary["scenarios"]
+    assert all(len(s["assessments"]) == 4 for s in scenarios)  # 2 раунди x 2 методи
+    dates = {a["assessed_at"][:10] for a in scenarios[0]["assessments"]}
+    assert dates == {"2026-06-01", "2026-07-01"}
+
+    data = client.get("/api/experiments/comparison", params={"top_n": 5}).json()
+    assert len(data["scenarios"]) == summary["scenarios"]
+    row = data["scenarios"][0]
+    assert row["tree"]["custom"] is True and row["tree"]["leaves"] >= 2
+    for model in ("matrix", "combined"):
+        s = data["summary"][model]
+        assert sum(s["levels"].values()) == summary["scenarios"]
+        assert s["residual"]["mean"] <= s["score"]["mean"]
+    assert -1 <= data["agreement"]["spearman"]["coef"] <= 1
+    assert len(data["measures"]) == summary["measures"]
+    # комбінований метод розрізняє сценарії краще за матрицю (менше однакових балів)
+    assert data["summary"]["combined"]["tie_ratio"] < data["summary"]["matrix"]["tie_ratio"]
